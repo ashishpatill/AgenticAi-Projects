@@ -1,2 +1,2 @@
-# AgenticAi
+# AgenticAi Projects
 Agentic Ai Frameworks
