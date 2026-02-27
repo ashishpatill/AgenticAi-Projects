@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Concept Visualizer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { font-family: 'Inter', system-ui, sans-serif; background: #F8F7F2; color: #1A1A16; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes shimmer {
+      0%   { background-position: -200% 0; }
+      100% { background-position:  200% 0; }
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .fade-up { animation: fadeUp 0.4s ease-out both; }
+
+    .shimmer {
+      background: linear-gradient(90deg, #edeada 25%, #e3e0d0 50%, #edeada 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.6s infinite;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid #d1cfc4;
+      border-top-color: #D97706;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    textarea { resize: none; }
+
+    input[type="password"], input[type="text"] { font-family: 'SF Mono', 'Fira Code', monospace; }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d1cfc4; border-radius: 4px; }
+  </style>
+</head>
+
+<body class="min-h-screen">
+
+  <!-- ─── Header ──────────────────────────────────────────────────────────── -->
+  <header class="sticky top-0 z-20 bg-[#F8F7F2]/90 backdrop-blur-md border-b border-[#E8E5D8]">
+    <div class="max-w-2xl mx-auto px-4 sm:px-6 h-13 flex items-center justify-between py-3">
+      <div class="flex items-center gap-2.5">
+        <!-- Logo mark -->
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+          <rect width="22" height="22" rx="6" fill="#1A1A16"/>
+          <path d="M6 11h10M11 6l5 5-5 5" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="font-semibold text-sm tracking-tight text-[#1A1A16]">Concept Visualizer</span>
+      </div>
+      <span class="text-xs text-[#8A8878] hidden sm:block">AI · Hand-drawn · Sequential</span>
+    </div>
+  </header>
+
+  <!-- ─── Main ────────────────────────────────────────────────────────────── -->
+  <main class="max-w-2xl mx-auto px-4 sm:px-6 py-10 sm:py-14 space-y-6">
+
+    <!-- Hero text -->
+    <div>
+      <h1 class="text-2xl sm:text-[2rem] font-semibold tracking-tight leading-tight mb-2">
+        Understand anything, visually.
+      </h1>
+      <p class="text-[#6B6B5C] text-sm sm:text-[15px] leading-relaxed max-w-xl">
+        Enter any academic topic. An AI pipeline verifies it, plans a learning sequence, then generates hand-drawn Excalidraw-style diagrams — step by step.
+      </p>
+    </div>
+
+    <!-- ─── Input Card ──────────────────────────────────────────────────── -->
+    <div id="input-section" class="space-y-3">
+
+      <!-- API Key row -->
+      <div class="bg-white rounded-2xl border border-[#E8E5D8] shadow-sm p-4">
+        <label class="block text-[10px] font-semibold uppercase tracking-widest text-[#8A8878] mb-2">
+          Gemini API Key
+        </label>
+        <div class="flex items-center gap-2">
+          <input
+            id="api-key"
+            type="password"
+            placeholder="AIzaSy..."
+            autocomplete="off"
+            class="flex-1 text-xs bg-[#F8F7F2] rounded-lg border border-[#E8E5D8] px-3 py-2 outline-none
+                   focus:border-[#D97706] focus:ring-2 focus:ring-[#D97706]/10 transition-all
+                   placeholder-[#B8B5A5]"
+          />
+          <button
+            onclick="toggleKey()"
+            title="Show / hide key"
+            class="p-2 rounded-lg text-[#B8B5A5] hover:text-[#6B6B5C] hover:bg-[#F0EEE4] transition-colors"
+          >
+            <svg id="eye-on" width="15" height="15" viewBox="0 0 15 15" fill="none">
+              <path d="M1 7.5S3.5 3 7.5 3s6.5 4.5 6.5 4.5S13.5 12 7.5 12 1 7.5 1 7.5z" stroke="currentColor" stroke-width="1.2"/>
+              <circle cx="7.5" cy="7.5" r="1.8" stroke="currentColor" stroke-width="1.2"/>
+            </svg>
+            <svg id="eye-off" width="15" height="15" viewBox="0 0 15 15" fill="none" class="hidden">
+              <path d="M1 1l13 13M6.4 6.5a1.8 1.8 0 002.2 2.1M3.4 3.6C2 4.8 1 7.5 1 7.5S3.5 12 7.5 12a7 7 0 003.1-.7M5.5 2.9A7 7 0 017.5 3c4 0 6.5 4.5 6.5 4.5a12.5 12.5 0 01-1.9 2.6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+        <p class="mt-2 text-[10px] text-[#B8B5A5]">
+          Stays in your browser only. &thinsp;
+          <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener"
+             class="text-[#D97706] hover:underline underline-offset-2">Get a free key →</a>
+        </p>
+      </div>
+
+      <!-- Topic row -->
+      <div class="bg-white rounded-2xl border border-[#E8E5D8] shadow-sm p-4">
+        <label class="block text-[10px] font-semibold uppercase tracking-widest text-[#8A8878] mb-2">
+          Topic
+        </label>
+        <textarea
+          id="topic-input"
+          rows="2"
+          placeholder="e.g. Transformer attention mechanism, CRISPR gene editing, Fourier transforms, Black holes..."
+          class="w-full text-sm bg-[#F8F7F2] rounded-lg border border-[#E8E5D8] px-3 py-2.5
+                 outline-none focus:border-[#D97706] focus:ring-2 focus:ring-[#D97706]/10
+                 transition-all placeholder-[#B8B5A5] leading-relaxed"
+        ></textarea>
+      </div>
+
+      <!-- Error -->
+      <div id="error-msg" class="hidden bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-xs text-red-600 leading-relaxed"></div>
+
+      <!-- Submit -->
+      <button
+        id="gen-btn"
+        onclick="run()"
+        class="w-full bg-[#1A1A16] text-white text-sm font-medium rounded-2xl py-3
+               hover:bg-[#2E2E28] active:scale-[0.99] transition-all
+               disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        Generate Visualizations
+      </button>
+    </div>
+
+    <!-- ─── Progress Panel ─────────────────────────────────────────────── -->
+    <div id="progress-section" class="hidden">
+      <div class="bg-white rounded-2xl border border-[#E8E5D8] shadow-sm p-5">
+        <p class="text-[10px] font-semibold uppercase tracking-widest text-[#8A8878] mb-4">Pipeline</p>
+        <div id="progress-list" class="space-y-3"></div>
+      </div>
+    </div>
+
+    <!-- ─── Non-academic rejection ────────────────────────────────────── -->
+    <div id="reject-section" class="hidden">
+      <div class="bg-amber-50 border border-amber-100 rounded-2xl p-8 text-center">
+        <div class="text-4xl mb-3">🤔</div>
+        <h3 class="font-semibold text-[#1A1A16] mb-1">Not an academic topic</h3>
+        <p id="reject-reason" class="text-sm text-[#6B6B5C] max-w-sm mx-auto"></p>
+        <button onclick="reset()" class="mt-5 text-sm text-[#D97706] hover:underline underline-offset-2">
+          ← Try a different topic
+        </button>
+      </div>
+    </div>
+
+    <!-- ─── Results ────────────────────────────────────────────────────── -->
+    <div id="results-section" class="hidden space-y-4">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <h2 id="results-title" class="font-semibold text-lg tracking-tight"></h2>
+          <p id="results-meta" class="text-xs text-[#8A8878] mt-0.5"></p>
+        </div>
+        <button onclick="reset()"
+          class="flex-shrink-0 text-xs text-[#6B6B5C] border border-[#E8E5D8] rounded-xl px-3 py-1.5
+                 hover:bg-white transition-colors">
+          New topic
+        </button>
+      </div>
+      <div id="results-grid" class="space-y-4"></div>
+    </div>
+
+  </main>
+
+  <!-- ─── Footer ──────────────────────────────────────────────────────────── -->
+  <footer class="max-w-2xl mx-auto px-4 sm:px-6 py-8 border-t border-[#E8E5D8] mt-8">
+    <p class="text-[10px] text-[#B8B5A5] text-center">
+      Powered by Gemini · Inspired by
+      <a href="https://arxiv.org/abs/2601.23265" target="_blank" rel="noopener" class="hover:text-[#8A8878] underline-offset-2 hover:underline">arXiv 2601.23265</a>
+      · Your API key never leaves your browser
+    </p>
+  </footer>
+
+
+  <script>
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  Gemini API Client
+  // ═══════════════════════════════════════════════════════════════════════════
+  class Gemini {
+    constructor(key) {
+      this.key = key;
+      this.base = 'https://generativelanguage.googleapis.com/v1beta/models';
+    }
+
+    async _post(model, body) {
+      const res = await fetch(`${this.base}/${model}:generateContent?key=${this.key}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        let msg = `HTTP ${res.status}`;
+        try { msg = (await res.json()).error?.message || msg; } catch {}
+        throw new Error(msg);
+      }
+      return res.json();
+    }
+
+    /** Returns parsed JSON object from a text model. */
+    async json(prompt) {
+      const data = await this._post('gemini-2.0-flash', {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: 'application/json', temperature: 0.6 },
+      });
+      const raw = data.candidates[0].content.parts[0].text;
+      return JSON.parse(raw);
+    }
+
+    /** Returns a data-URL string from the image generation model. */
+    async image(prompt) {
+      const data = await this._post('gemini-2.0-flash-preview-image-generation', {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
+      });
+      const parts = data.candidates[0].content.parts;
+      const imgPart = parts.find(p => p.inlineData);
+      if (!imgPart) throw new Error('No image returned by the model.');
+      return `data:${imgPart.inlineData.mimeType};base64,${imgPart.inlineData.data}`;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  Agent 1 — Verifier
+  //  Checks whether the topic is academic and estimates complexity.
+  // ═══════════════════════════════════════════════════════════════════════════
+  async function agentVerify(gemini, topic) {
+    return gemini.json(`
+You are an academic topic classifier.
+
+Determine whether the following topic is an academic / educational concept
+that can be visually explained through diagrams.
+
+Topic: "${topic}"
+
+Academic topics include: science (physics, chemistry, biology, astronomy),
+mathematics, computer science, engineering, medicine / anatomy, philosophy,
+economics, psychology, history, linguistics, environmental science, etc.
+
+Non-academic topics include: celebrity news, recipes, sports gossip,
+entertainment, etc.
+
+Respond with VALID JSON only — no markdown fences:
+{
+  "isAcademic": <true|false>,
+  "reason": "<one sentence>",
+  "complexity": "<simple|moderate|complex>",
+  "refinedTopic": "<clean, title-case topic name>",
+  "description": "<one clear sentence describing what this concept is>"
+}
+
+complexity guide:
+  simple   → well-known concept, 3–4 diagrams sufficient
+  moderate → multi-part concept, 5–6 diagrams
+  complex  → deep / layered concept, 7–9 diagrams
+`);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  Agent 2 — Planner
+  //  Generates the ordered list of visualization prompts.
+  // ═══════════════════════════════════════════════════════════════════════════
+  async function agentPlan(gemini, topic, complexity, description) {
+    const countMap = { simple: '3–4', moderate: '5–6', complex: '7–9' };
+    const count = countMap[complexity] || '4–6';
+
+    return gemini.json(`
+You are an expert visual educator.
+
+Create ${count} sequential hand-drawn whiteboard diagrams that progressively
+explain the following academic concept from the ground up.
+
+Topic: "${topic}"
+Description: "${description}"
+Complexity: ${complexity}
+
+Each step must build on the previous. The sequence should form a coherent
+learning journey — starting from intuition / analogy and ending with the
+full picture.
+
+Respond with VALID JSON only — no markdown fences:
+{
+  "topic": "<topic name>",
+  "totalSteps": <integer>,
+  "visualizations": [
+    {
+      "step": 1,
+      "title": "<short title, max 6 words>",
+      "description": "<one sentence: what this visual teaches>",
+      "imagePrompt": "<detailed prompt for an Excalidraw-style hand-drawn diagram>"
+    }
+  ]
+}
+
+Rules for imagePrompt:
+- ALWAYS open with: "Excalidraw-style hand-drawn whiteboard diagram. White background.
+  Rough black ink sketch lines with a slight hand-drawn wobble. Simple geometric
+  shapes (rectangles, circles, arrows) drawn imperfectly, as if by hand."
+- Then describe the specific content: shapes, labels, arrows, layout.
+- Keep it educational, clear, and uncluttered.
+- Do NOT mention photorealism, gradients, or 3-D rendering.
+`);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  Agent 3 — Visualizer
+  //  Generates each image, one at a time, returning a data-URL.
+  // ═══════════════════════════════════════════════════════════════════════════
+  async function agentVisualize(gemini, imagePrompt, step, title) {
+    const fullPrompt = `
+Excalidraw-style hand-drawn whiteboard diagram. White background.
+Rough black ink sketch lines with slight hand-drawn wobble.
+Simple geometric shapes (rectangles, circles, arrows) drawn imperfectly, as if by hand.
+Clean label text in a casual handwriting-like style. Clear visual hierarchy.
+Educational diagram for a student or researcher.
+
+Diagram content:
+${imagePrompt}
+
+Step ${step}: ${title}
+`;
+    return gemini.image(fullPrompt.trim());
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  UI helpers
+  // ═══════════════════════════════════════════════════════════════════════════
+  function $(id) { return document.getElementById(id); }
+
+  function showError(msg) {
+    const el = $('error-msg');
+    el.textContent = msg;
+    el.classList.remove('hidden');
+  }
+  function hideError() { $('error-msg').classList.add('hidden'); }
+
+  function setBusy(busy) {
+    const btn = $('gen-btn');
+    btn.disabled = busy;
+    btn.textContent = busy ? 'Working…' : 'Generate Visualizations';
+  }
+
+  // Progress step states: 'wait' | 'active' | 'done' | 'err'
+  function stepIcon(state) {
+    if (state === 'wait')   return `<div class="w-4 h-4 rounded-full border-2 border-[#D8D5C2] flex-shrink-0"></div>`;
+    if (state === 'active') return `<div class="spinner"></div>`;
+    if (state === 'done')   return `
+      <div class="w-4 h-4 rounded-full bg-[#1A1A16] flex items-center justify-center flex-shrink-0">
+        <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+          <path d="M1.5 4l2 2 3-3.5" stroke="white" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>`;
+    return `<div class="w-4 h-4 rounded-full bg-red-100 text-red-500 text-[9px] font-bold flex items-center justify-center flex-shrink-0">!</div>`;
+  }
+
+  function upsertStep(id, label, state) {
+    let row = $(`pstep-${id}`);
+    if (!row) {
+      row = document.createElement('div');
+      row.id = `pstep-${id}`;
+      row.className = 'flex items-center gap-3 fade-up';
+      $('progress-list').appendChild(row);
+    }
+    row.innerHTML = `${stepIcon(state)}<span class="text-sm text-[#3D3D36] leading-snug">${label}</span>`;
+  }
+
+  // Results card
+  function addLoadingCard(step, title, desc, total) {
+    const card = document.createElement('div');
+    card.id = `card-${step}`;
+    card.className = 'bg-white rounded-2xl border border-[#E8E5D8] shadow-sm overflow-hidden fade-up';
+    card.innerHTML = `
+      <div class="px-5 py-4 border-b border-[#E8E5D8]">
+        <div class="flex items-center gap-2 mb-1.5">
+          <span class="text-[10px] font-mono text-[#B8B5A5]">${step} / ${total}</span>
+          <span class="flex items-center gap-1.5 text-[11px] text-[#D97706]">
+            <span class="spinner" style="width:10px;height:10px;border-width:1.5px;"></span>
+            Generating…
+          </span>
+        </div>
+        <h3 class="font-medium text-sm text-[#1A1A16]">${title}</h3>
+        <p class="text-xs text-[#6B6B5C] mt-1 leading-relaxed">${desc}</p>
+      </div>
+      <div data-img-slot class="h-64 sm:h-80 shimmer"></div>
+    `;
+    $('results-grid').appendChild(card);
+  }
+
+  function resolveCard(step, src) {
+    const card = $(`card-${step}`);
+    if (!card) return;
+    // Clear spinner badge
+    card.querySelector('.text-\\[\\#D97706\\]')?.remove();
+    const slot = card.querySelector('[data-img-slot]');
+    if (!slot) return;
+    // Build image + download button
+    const wrapper = document.createElement('div');
+    wrapper.className = 'relative group';
+    const img = document.createElement('img');
+    img.src = src;
+    img.alt = `Step ${step}`;
+    img.className = 'w-full block';
+    img.loading = 'lazy';
+    const dlBtn = document.createElement('a');
+    dlBtn.href = src;
+    dlBtn.download = `concept-step-${step}.png`;
+    dlBtn.className = `
+      absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity
+      bg-white/90 backdrop-blur-sm border border-[#E8E5D8] rounded-lg
+      px-2.5 py-1.5 text-[10px] font-medium text-[#3D3D36] flex items-center gap-1.5
+      hover:bg-white shadow-sm
+    `.replace(/\s+/g, ' ').trim();
+    dlBtn.innerHTML = `
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+        <path d="M5 1v6M2 7l3 2 3-2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Save
+    `;
+    wrapper.appendChild(img);
+    wrapper.appendChild(dlBtn);
+    slot.replaceWith(wrapper);
+  }
+
+  function errorCard(step, msg) {
+    const card = $(`card-${step}`);
+    if (!card) return;
+    const slot = card.querySelector('[data-img-slot]');
+    if (!slot) return;
+    const errDiv = document.createElement('div');
+    errDiv.className = 'h-48 flex flex-col items-center justify-center text-center p-6';
+    errDiv.innerHTML = `
+      <div class="text-2xl mb-2">⚠️</div>
+      <p class="text-xs font-medium text-[#6B6B5C]">Image generation failed</p>
+      <p class="text-[10px] text-[#B8B5A5] mt-1 max-w-xs">${msg}</p>
+    `;
+    slot.replaceWith(errDiv);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  State & controls
+  // ═══════════════════════════════════════════════════════════════════════════
+  let busy = false;
+
+  function toggleKey() {
+    const inp = $('api-key');
+    const isPass = inp.type === 'password';
+    inp.type = isPass ? 'text' : 'password';
+    $('eye-on').classList.toggle('hidden', isPass);
+    $('eye-off').classList.toggle('hidden', !isPass);
+  }
+
+  function reset() {
+    busy = false;
+    setBusy(false);
+    hideError();
+    $('progress-section').classList.add('hidden');
+    $('reject-section').classList.add('hidden');
+    $('results-section').classList.add('hidden');
+    $('input-section').classList.remove('hidden');
+    $('progress-list').innerHTML = '';
+    $('results-grid').innerHTML = '';
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  Main pipeline
+  // ═══════════════════════════════════════════════════════════════════════════
+  async function run() {
+    if (busy) return;
+
+    hideError();
+    const key   = $('api-key').value.trim();
+    const topic = $('topic-input').value.trim();
+    if (!key)   { showError('Please enter your Gemini API key.'); return; }
+    if (!topic) { showError('Please enter a topic to visualize.'); return; }
+
+    busy = true;
+    setBusy(true);
+    $('input-section').classList.add('hidden');
+    $('progress-section').classList.remove('hidden');
+
+    const gemini = new Gemini(key);
+
+    try {
+      // ── Agent 1: Verify ───────────────────────────────────────────────
+      upsertStep('verify', 'Verifying topic…', 'active');
+      let verify;
+      try {
+        verify = await agentVerify(gemini, topic);
+      } catch (e) {
+        upsertStep('verify', 'Verification failed', 'err');
+        throw new Error(`Verifier: ${e.message}`);
+      }
+
+      if (!verify.isAcademic) {
+        upsertStep('verify', 'Topic checked', 'done');
+        $('progress-section').classList.add('hidden');
+        $('reject-section').classList.remove('hidden');
+        $('reject-reason').textContent = verify.reason;
+        busy = false;
+        return;
+      }
+
+      upsertStep('verify',
+        `"${verify.refinedTopic}" — ${verify.complexity} complexity`,
+        'done');
+
+      // ── Agent 2: Plan ─────────────────────────────────────────────────
+      upsertStep('plan', 'Planning visualizations…', 'active');
+      let plan;
+      try {
+        plan = await agentPlan(gemini, verify.refinedTopic, verify.complexity, verify.description);
+      } catch (e) {
+        upsertStep('plan', 'Planning failed', 'err');
+        throw new Error(`Planner: ${e.message}`);
+      }
+
+      const total = plan.visualizations.length;
+      upsertStep('plan', `Planned ${total} sequential diagrams`, 'done');
+
+      // ── Show results container ────────────────────────────────────────
+      $('results-section').classList.remove('hidden');
+      $('results-title').textContent  = plan.topic;
+      $('results-meta').textContent   = `${total} diagrams · ${verify.complexity} complexity`;
+
+      // Pre-render all loading skeletons
+      for (const v of plan.visualizations) {
+        addLoadingCard(v.step, v.title, v.description, total);
+      }
+
+      // ── Agent 3: Visualize (sequential) ──────────────────────────────
+      upsertStep('viz', `Generating image 1 of ${total}…`, 'active');
+
+      let success = 0;
+      for (let i = 0; i < plan.visualizations.length; i++) {
+        const v = plan.visualizations[i];
+        upsertStep('viz', `Generating image ${i + 1} of ${total}…`, 'active');
+        try {
+          const dataUrl = await agentVisualize(gemini, v.imagePrompt, v.step, v.title);
+          resolveCard(v.step, dataUrl);
+          success++;
+        } catch (e) {
+          console.error(`Image ${v.step} failed:`, e);
+          errorCard(v.step, e.message);
+        }
+      }
+
+      upsertStep('viz', `Done — ${success} of ${total} images generated`, 'done');
+
+      // Smooth scroll to results
+      $('results-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    } catch (err) {
+      console.error(err);
+      $('input-section').classList.remove('hidden');
+      showError(err.message);
+      setBusy(false);
+    }
+
+    busy = false;
+  }
+
+  // ─── Keyboard shortcut: Enter in textarea submits ──────────────────────
+  $('topic-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); run(); }
+  });
+
+  // ─── Persist API key in sessionStorage (cleared when tab closes) ────────
+  const saved = sessionStorage.getItem('cv-key');
+  if (saved) $('api-key').value = saved;
+  $('api-key').addEventListener('input', e => sessionStorage.setItem('cv-key', e.target.value));
+  </script>
+
+</body>
+</html>
