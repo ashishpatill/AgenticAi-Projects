@@ -371,6 +371,15 @@ Rules for imagePrompt:
 - Then describe the specific content: shapes, labels, arrows, layout.
 - Keep it educational, clear, and uncluttered.
 - Do NOT mention photorealism, gradients, or 3-D rendering.
+- ARROWS — follow these rules strictly:
+  * Draw an arrow ONLY when there is an explicit directional relationship
+    (data flow, causation, sequence, or signal passing) between two elements.
+  * Every arrow must have a clearly named source block and a clearly named
+    destination block. Write it as: "arrow from [A] to [B]".
+  * Do NOT draw arrows between blocks that are merely near each other or
+    that share a label without an explicit connection.
+  * Do NOT add decorative or implied arrows — only arrows that carry meaning.
+  * If two blocks are NOT directly connected, leave the space between them empty.
 `);
   }
 
@@ -385,6 +394,13 @@ Rough black ink sketch lines with slight hand-drawn wobble.
 Simple geometric shapes (rectangles, circles, arrows) drawn imperfectly, as if by hand.
 Clean label text in a casual handwriting-like style. Clear visual hierarchy.
 Educational diagram for a student or researcher.
+
+ARROW RULES — follow exactly:
+- Draw an arrow ONLY when the diagram content explicitly states "arrow from X to Y".
+- Each arrow must visually start at the named source block and end at the named destination block with an arrowhead.
+- Do NOT add any arrow that is not explicitly described in the diagram content below.
+- Do NOT omit any arrow that IS explicitly described.
+- Two blocks placed close together do NOT imply an arrow — only draw arrows that are stated.
 
 Diagram content:
 ${imagePrompt}
