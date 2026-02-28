@@ -360,56 +360,68 @@ Respond with VALID JSON only — no markdown fences:
       "title": "<short title, max 6 words>",
       "description": "<one sentence: what this visual teaches>",
       "diagramType": "<one of: flowchart | concept-map | hierarchy | cycle | timeline | comparison | anatomy | network>",
-      "imagePrompt": "<detailed prompt for an Excalidraw-style hand-drawn diagram>"
+      "imagePrompt": "<structured diagram specification — see FORMAT below>"
     }
   ]
 }
 
 DIAGRAM TYPE GUIDE — choose the best type for each step:
   flowchart    → algorithms, processes, decision trees
-                 Use: rectangles for steps, diamonds for decisions, ovals for start/end
-                 Layout: top-to-bottom or left-to-right
+                 shapes: rect for steps, diamond for decisions, oval for start/end
+                 layout: top-to-bottom or left-to-right
   concept-map  → relationships and associations between ideas
-                 Use: circles/ovals for concepts, labeled connector lines for relationships
-                 Layout: central concept at middle, related concepts radiating out
+                 shapes: oval for each concept, labeled edges for relationships
+                 layout: central concept in middle, others radiating outward
   hierarchy    → taxonomies, classifications, parent-child structures
-                 Use: boxes connected by lines in a tree structure
-                 Layout: root at top, children below
+                 shapes: rect for each node, plain lines (no arrows) for parent-child links
+                 layout: root at top, children below
   cycle        → circular or recurring processes (cell cycle, water cycle, feedback loops)
-                 Use: boxes or labels arranged in a circle with directional arrows completing the loop
-                 Layout: clockwise arrangement
-  timeline     → historical events, phases, or step-by-step sequences
-                 Use: horizontal line with labeled markers at key points
-                 Layout: left (earliest) to right (latest)
-  comparison   → contrasting two or more items side-by-side
-                 Use: vertical columns, each column for one item, rows for attributes
-                 Layout: items as column headers, attributes as row labels
+                 shapes: rect for each stage arranged in a ring
+                 layout: clockwise, arrow from each stage to the next, last back to first
+  timeline     → historical events, phases, step-by-step sequences
+                 shapes: a horizontal axis line, labeled tick marks or brackets above/below
+                 layout: left (earliest) to right (latest)
+  comparison   → contrasting two or more items
+                 shapes: column headers as labels, attribute rows as text cells
+                 layout: side-by-side columns, dividing vertical line between them
   anatomy      → labeled parts of a structure or system
-                 Use: central diagram of the structure with leader lines pointing to labeled parts
-                 Layout: structure centered, labels around the perimeter
-  network      → interconnected nodes with no strict hierarchy (neural nets, ecosystems, social graphs)
-                 Use: circles for nodes, lines for edges, labels on both nodes and edges
-                 Layout: spread out with clear spacing between nodes
+                 shapes: central structure drawing with leader lines to callout labels
+                 layout: structure centered, labels around the perimeter
+  network      → interconnected nodes with no strict hierarchy
+                 shapes: circle for each node, plain or directed edges
+                 layout: spread out, clear spacing, no overlapping labels
 
-Rules for imagePrompt:
-- ALWAYS open with: "Excalidraw-style hand-drawn whiteboard diagram. White background.
-  Rough black ink sketch lines with a slight hand-drawn wobble. Simple geometric
-  shapes drawn imperfectly, as if by hand."
-- State the diagramType explicitly: e.g. "Flowchart layout, top-to-bottom."
-- Then describe the specific content using the shape conventions for that type.
-- Use the correct shape vocabulary for the chosen type (see DIAGRAM TYPE GUIDE).
-- Include a small title label at the top of the diagram matching the step title.
-- Keep it educational, clear, and uncluttered — max 8–10 elements per diagram.
-- Do NOT mention photorealism, gradients, or 3-D rendering.
-- ARROWS — follow these rules strictly:
-  * Draw an arrow ONLY when there is an explicit directional relationship
-    (data flow, causation, sequence, or signal passing) between two elements.
-  * Every arrow must have a clearly named source block and a clearly named
-    destination block. Write it as: "arrow from [A] to [B]".
-  * Do NOT draw arrows between blocks that are merely near each other or
-    that share a label without an explicit connection.
-  * Do NOT add decorative or implied arrows — only arrows that carry meaning.
-  * If two blocks are NOT directly connected, leave the space between them empty.
+═══════════════════════════════════════════════════════
+imagePrompt FORMAT — use this EXACT 4-section structure:
+═══════════════════════════════════════════════════════
+
+TITLE: <step title — max 6 words, exact match to "title" field>
+
+ELEMENTS:
+- <shape> "<Label>"
+  (shape = rect | diamond | oval | circle | line)
+  (Label = 1-4 common English words, spelled correctly)
+  (list every unique element ONCE — never repeat a label)
+  (max 8 elements total)
+
+CONNECTIONS:
+- "<Source Label>" to "<Destination Label>"
+  (use only labels that appear in ELEMENTS)
+  (one connection per line)
+  (for diagrams with no directed flow, write: none)
+
+LAYOUT: <one sentence: spatial arrangement and reading direction>
+
+═══════════════════════════════════════════════════════
+STRICT RULES:
+- Every label must be plain English, spelled correctly, 1-4 words.
+- Each label appears in ELEMENTS exactly once. Never repeat.
+- CONNECTIONS reference only labels listed in ELEMENTS.
+- Include all meaningful directed connections — do not omit flow paths.
+- Do NOT use square brackets [ ] anywhere in the imagePrompt.
+- Do NOT write the section headers (TITLE, ELEMENTS, CONNECTIONS, LAYOUT)
+  as part of diagram content — they are structural markers only.
+═══════════════════════════════════════════════════════
 `);
   }
 
@@ -417,41 +429,57 @@ Rules for imagePrompt:
   //  Agent 3 — Visualizer
   //  Generates each image, one at a time, returning a data-URL.
   // ═══════════════════════════════════════════════════════════════════════════
-  // Diagram-type-specific shape conventions injected into every image prompt.
+  // Shape vocabulary and layout guide per diagram type, used in the visualizer system prompt.
   const DIAGRAM_CONVENTIONS = {
-    'flowchart':    'Use rectangles for process steps, diamonds for decision points, ovals for start/end terminals. Flow goes top-to-bottom or left-to-right.',
-    'concept-map':  'Use circles or ovals for each concept. Connect concepts with labeled lines that describe the relationship (e.g., "causes", "contains", "leads to"). Place the central concept in the middle.',
-    'hierarchy':    'Use rectangles connected by lines in a tree structure. Root node at top, child nodes branching downward. No arrows — only connecting lines.',
-    'cycle':        'Arrange boxes or labels clockwise in a circle. Use arrows between each consecutive element to show the cyclic flow, with the last element\'s arrow returning to the first.',
-    'timeline':     'Draw a horizontal line from left to right. Mark key events or phases as labeled points or brackets above/below the line in chronological order.',
-    'comparison':   'Lay out items side-by-side as labeled columns. List compared attributes as rows. Draw a dividing line between columns.',
-    'anatomy':      'Draw the structure or system centrally. Use thin leader lines extending outward from specific parts to clearly labeled callout text.',
-    'network':      'Draw nodes as circles spread across the canvas. Connect nodes with lines or labeled edges. Maintain clear spacing so no lines overlap unnecessarily.',
+    'flowchart':    'rect = process step, diamond = decision (Yes/No branches), oval = start or end terminal. Flow direction: top-to-bottom or left-to-right.',
+    'concept-map':  'oval = concept node. Edges are labeled lines (not arrows) describing the relationship. Central concept in the middle, related concepts radiating outward.',
+    'hierarchy':    'rect = node. Parent-child links are plain lines without arrowheads. Root at top, leaves at bottom.',
+    'cycle':        'rect = stage. Stages arranged clockwise in a ring. Arrow from each stage to the next; the last stage arrow curves back to the first.',
+    'timeline':     'horizontal axis line from left to right. Labeled tick marks or small brackets above/below for each event or phase, in chronological order.',
+    'comparison':   'Column header labels at top. Attribute rows beneath each column. A vertical divider line separates the columns.',
+    'anatomy':      'Central structural drawing in the middle. Thin straight leader lines extend from specific parts outward to short callout labels.',
+    'network':      'circle = node, labeled inside. Edges are straight or curved lines. Directed edges have arrowheads. Nodes spread out with clear spacing.',
   };
 
   async function agentVisualize(gemini, imagePrompt, step, title, diagramType) {
-    const convention = DIAGRAM_CONVENTIONS[diagramType] || '';
+    const convention = DIAGRAM_CONVENTIONS[diagramType] || 'Use simple labeled boxes and lines appropriate to the content.';
     const fullPrompt = `
-Excalidraw-style hand-drawn whiteboard diagram. White background.
-Rough black ink sketch lines with slight hand-drawn wobble.
-Simple geometric shapes drawn imperfectly, as if by hand.
-Clean label text in a casual handwriting-like style. Clear visual hierarchy.
-Educational diagram for a student or researcher.
+Hand-drawn whiteboard-style educational diagram. White background.
+Sketch aesthetic: rough black ink lines with slight wobble, shapes slightly imperfect.
+Text style: casual handwriting-like labels, legible, short.
 
 DIAGRAM TYPE: ${diagramType || 'general'}
-SHAPE CONVENTIONS: ${convention}
+SHAPE GUIDE: ${convention}
 
-ARROW RULES — follow exactly:
-- Draw an arrow ONLY when the diagram content explicitly states "arrow from X to Y".
-- Each arrow must visually start at the named source block and end at the named destination block with an arrowhead.
-- Do NOT add any arrow that is not explicitly described in the diagram content below.
-- Do NOT omit any arrow that IS explicitly described.
-- Two blocks placed close together do NOT imply an arrow — only draw arrows that are stated.
+══════════════════════════════════════════
+RENDERING RULES — follow every rule below:
+══════════════════════════════════════════
 
-Diagram content:
+(1) TITLE — Write the step title as a small bold heading at the top of the canvas.
+    Title text: "${title}"
+
+(2) ELEMENTS — Draw each listed shape with its quoted label text inside or beside it.
+    Each element must appear EXACTLY ONCE on the canvas.
+    Never repeat, duplicate, or re-draw a shape that has the same label as one already drawn.
+
+(3) CONNECTIONS — For every line of the form "A" to "B":
+    Draw a physical ARROW LINE starting at shape A and ending at shape B, with an arrowhead at B.
+    CRITICAL: Do NOT write the words "to", the label names, or any connection description as visible text.
+    The connection is a drawn line with an arrowhead — nothing else.
+    Draw every listed connection. Do not omit any.
+
+(4) LAYOUT — Arrange the shapes according to the LAYOUT line in the specification.
+
+(5) STRICT PROHIBITIONS:
+    - Do NOT render the words TITLE, ELEMENTS, CONNECTIONS, or LAYOUT as visible text.
+    - Do NOT add shapes, labels, or arrows that are not listed in the specification.
+    - Do NOT write "Excalidraw", "hand-drawn", or any style description as text in the image.
+    - Spell every label exactly as written in the ELEMENTS list — no changes, no abbreviations.
+
+══════════════════════════════════════════
+Diagram specification (Step ${step}):
+══════════════════════════════════════════
 ${imagePrompt}
-
-Step ${step}: ${title}
 `;
     return gemini.image(fullPrompt.trim());
   }
