@@ -337,7 +337,7 @@ complexity guide:
     const count = countMap[complexity] || '4–6';
 
     return gemini.json(`
-You are an expert visual educator.
+You are an expert visual educator with deep knowledge of academic diagram conventions.
 
 Create ${count} sequential hand-drawn whiteboard diagrams that progressively
 explain the following academic concept from the ground up.
@@ -359,17 +359,47 @@ Respond with VALID JSON only — no markdown fences:
       "step": 1,
       "title": "<short title, max 6 words>",
       "description": "<one sentence: what this visual teaches>",
+      "diagramType": "<one of: flowchart | concept-map | hierarchy | cycle | timeline | comparison | anatomy | network>",
       "imagePrompt": "<detailed prompt for an Excalidraw-style hand-drawn diagram>"
     }
   ]
 }
 
+DIAGRAM TYPE GUIDE — choose the best type for each step:
+  flowchart    → algorithms, processes, decision trees
+                 Use: rectangles for steps, diamonds for decisions, ovals for start/end
+                 Layout: top-to-bottom or left-to-right
+  concept-map  → relationships and associations between ideas
+                 Use: circles/ovals for concepts, labeled connector lines for relationships
+                 Layout: central concept at middle, related concepts radiating out
+  hierarchy    → taxonomies, classifications, parent-child structures
+                 Use: boxes connected by lines in a tree structure
+                 Layout: root at top, children below
+  cycle        → circular or recurring processes (cell cycle, water cycle, feedback loops)
+                 Use: boxes or labels arranged in a circle with directional arrows completing the loop
+                 Layout: clockwise arrangement
+  timeline     → historical events, phases, or step-by-step sequences
+                 Use: horizontal line with labeled markers at key points
+                 Layout: left (earliest) to right (latest)
+  comparison   → contrasting two or more items side-by-side
+                 Use: vertical columns, each column for one item, rows for attributes
+                 Layout: items as column headers, attributes as row labels
+  anatomy      → labeled parts of a structure or system
+                 Use: central diagram of the structure with leader lines pointing to labeled parts
+                 Layout: structure centered, labels around the perimeter
+  network      → interconnected nodes with no strict hierarchy (neural nets, ecosystems, social graphs)
+                 Use: circles for nodes, lines for edges, labels on both nodes and edges
+                 Layout: spread out with clear spacing between nodes
+
 Rules for imagePrompt:
 - ALWAYS open with: "Excalidraw-style hand-drawn whiteboard diagram. White background.
   Rough black ink sketch lines with a slight hand-drawn wobble. Simple geometric
-  shapes (rectangles, circles, arrows) drawn imperfectly, as if by hand."
-- Then describe the specific content: shapes, labels, arrows, layout.
-- Keep it educational, clear, and uncluttered.
+  shapes drawn imperfectly, as if by hand."
+- State the diagramType explicitly: e.g. "Flowchart layout, top-to-bottom."
+- Then describe the specific content using the shape conventions for that type.
+- Use the correct shape vocabulary for the chosen type (see DIAGRAM TYPE GUIDE).
+- Include a small title label at the top of the diagram matching the step title.
+- Keep it educational, clear, and uncluttered — max 8–10 elements per diagram.
 - Do NOT mention photorealism, gradients, or 3-D rendering.
 - ARROWS — follow these rules strictly:
   * Draw an arrow ONLY when there is an explicit directional relationship
@@ -387,13 +417,29 @@ Rules for imagePrompt:
   //  Agent 3 — Visualizer
   //  Generates each image, one at a time, returning a data-URL.
   // ═══════════════════════════════════════════════════════════════════════════
-  async function agentVisualize(gemini, imagePrompt, step, title) {
+  // Diagram-type-specific shape conventions injected into every image prompt.
+  const DIAGRAM_CONVENTIONS = {
+    'flowchart':    'Use rectangles for process steps, diamonds for decision points, ovals for start/end terminals. Flow goes top-to-bottom or left-to-right.',
+    'concept-map':  'Use circles or ovals for each concept. Connect concepts with labeled lines that describe the relationship (e.g., "causes", "contains", "leads to"). Place the central concept in the middle.',
+    'hierarchy':    'Use rectangles connected by lines in a tree structure. Root node at top, child nodes branching downward. No arrows — only connecting lines.',
+    'cycle':        'Arrange boxes or labels clockwise in a circle. Use arrows between each consecutive element to show the cyclic flow, with the last element\'s arrow returning to the first.',
+    'timeline':     'Draw a horizontal line from left to right. Mark key events or phases as labeled points or brackets above/below the line in chronological order.',
+    'comparison':   'Lay out items side-by-side as labeled columns. List compared attributes as rows. Draw a dividing line between columns.',
+    'anatomy':      'Draw the structure or system centrally. Use thin leader lines extending outward from specific parts to clearly labeled callout text.',
+    'network':      'Draw nodes as circles spread across the canvas. Connect nodes with lines or labeled edges. Maintain clear spacing so no lines overlap unnecessarily.',
+  };
+
+  async function agentVisualize(gemini, imagePrompt, step, title, diagramType) {
+    const convention = DIAGRAM_CONVENTIONS[diagramType] || '';
     const fullPrompt = `
 Excalidraw-style hand-drawn whiteboard diagram. White background.
 Rough black ink sketch lines with slight hand-drawn wobble.
-Simple geometric shapes (rectangles, circles, arrows) drawn imperfectly, as if by hand.
+Simple geometric shapes drawn imperfectly, as if by hand.
 Clean label text in a casual handwriting-like style. Clear visual hierarchy.
 Educational diagram for a student or researcher.
+
+DIAGRAM TYPE: ${diagramType || 'general'}
+SHAPE CONVENTIONS: ${convention}
 
 ARROW RULES — follow exactly:
 - Draw an arrow ONLY when the diagram content explicitly states "arrow from X to Y".
@@ -453,7 +499,19 @@ Step ${step}: ${title}
   }
 
   // Results card
-  function addLoadingCard(step, title, desc, total) {
+  const DIAGRAM_TYPE_LABELS = {
+    'flowchart':   'Flowchart',
+    'concept-map': 'Concept Map',
+    'hierarchy':   'Hierarchy',
+    'cycle':       'Cycle',
+    'timeline':    'Timeline',
+    'comparison':  'Comparison',
+    'anatomy':     'Anatomy',
+    'network':     'Network',
+  };
+
+  function addLoadingCard(step, title, desc, total, diagramType) {
+    const typeLabel = diagramType ? (DIAGRAM_TYPE_LABELS[diagramType] || diagramType) : '';
     const card = document.createElement('div');
     card.id = `card-${step}`;
     card.className = 'bg-white rounded-2xl border border-[#E8E5D8] shadow-sm overflow-hidden fade-up';
@@ -461,7 +519,8 @@ Step ${step}: ${title}
       <div class="px-5 py-4 border-b border-[#E8E5D8]">
         <div class="flex items-center gap-2 mb-1.5">
           <span class="text-[10px] font-mono text-[#B8B5A5]">${step} / ${total}</span>
-          <span class="flex items-center gap-1.5 text-[11px] text-[#D97706]">
+          ${typeLabel ? `<span class="text-[10px] font-medium text-[#8A8878] bg-[#F0EEE4] rounded-md px-1.5 py-0.5">${typeLabel}</span>` : ''}
+          <span class="flex items-center gap-1.5 text-[11px] text-[#D97706] ml-auto">
             <span class="spinner" style="width:10px;height:10px;border-width:1.5px;"></span>
             Generating…
           </span>
@@ -624,7 +683,7 @@ Step ${step}: ${title}
 
       // Pre-render all loading skeletons
       for (const v of plan.visualizations) {
-        addLoadingCard(v.step, v.title, v.description, total);
+        addLoadingCard(v.step, v.title, v.description, total, v.diagramType);
       }
 
       // ── Agent 3: Visualize (sequential) ──────────────────────────────
@@ -635,7 +694,7 @@ Step ${step}: ${title}
         const v = plan.visualizations[i];
         upsertStep('viz', `Generating image ${i + 1} of ${total}…`, 'active');
         try {
-          const dataUrl = await agentVisualize(gemini, v.imagePrompt, v.step, v.title);
+          const dataUrl = await agentVisualize(gemini, v.imagePrompt, v.step, v.title, v.diagramType);
           resolveCard(v.step, dataUrl);
           success++;
         } catch (e) {
