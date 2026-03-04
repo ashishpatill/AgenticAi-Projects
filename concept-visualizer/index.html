@@ -337,7 +337,7 @@ complexity guide:
     const count = countMap[complexity] || '4–6';
 
     return gemini.json(`
-You are an expert visual educator.
+You are an expert visual educator with deep knowledge of academic diagram conventions.
 
 Create ${count} sequential hand-drawn whiteboard diagrams that progressively
 explain the following academic concept from the ground up.
@@ -359,27 +359,69 @@ Respond with VALID JSON only — no markdown fences:
       "step": 1,
       "title": "<short title, max 6 words>",
       "description": "<one sentence: what this visual teaches>",
-      "imagePrompt": "<detailed prompt for an Excalidraw-style hand-drawn diagram>"
+      "diagramType": "<one of: flowchart | concept-map | hierarchy | cycle | timeline | comparison | anatomy | network>",
+      "imagePrompt": "<structured diagram specification — see FORMAT below>"
     }
   ]
 }
 
-Rules for imagePrompt:
-- ALWAYS open with: "Excalidraw-style hand-drawn whiteboard diagram. White background.
-  Rough black ink sketch lines with a slight hand-drawn wobble. Simple geometric
-  shapes (rectangles, circles, arrows) drawn imperfectly, as if by hand."
-- Then describe the specific content: shapes, labels, arrows, layout.
-- Keep it educational, clear, and uncluttered.
-- Do NOT mention photorealism, gradients, or 3-D rendering.
-- ARROWS — follow these rules strictly:
-  * Draw an arrow ONLY when there is an explicit directional relationship
-    (data flow, causation, sequence, or signal passing) between two elements.
-  * Every arrow must have a clearly named source block and a clearly named
-    destination block. Write it as: "arrow from [A] to [B]".
-  * Do NOT draw arrows between blocks that are merely near each other or
-    that share a label without an explicit connection.
-  * Do NOT add decorative or implied arrows — only arrows that carry meaning.
-  * If two blocks are NOT directly connected, leave the space between them empty.
+DIAGRAM TYPE GUIDE — choose the best type for each step:
+  flowchart    → algorithms, processes, decision trees
+                 shapes: rect for steps, diamond for decisions, oval for start/end
+                 layout: top-to-bottom or left-to-right
+  concept-map  → relationships and associations between ideas
+                 shapes: oval for each concept, labeled edges for relationships
+                 layout: central concept in middle, others radiating outward
+  hierarchy    → taxonomies, classifications, parent-child structures
+                 shapes: rect for each node, plain lines (no arrows) for parent-child links
+                 layout: root at top, children below
+  cycle        → circular or recurring processes (cell cycle, water cycle, feedback loops)
+                 shapes: rect for each stage arranged in a ring
+                 layout: clockwise, arrow from each stage to the next, last back to first
+  timeline     → historical events, phases, step-by-step sequences
+                 shapes: a horizontal axis line, labeled tick marks or brackets above/below
+                 layout: left (earliest) to right (latest)
+  comparison   → contrasting two or more items
+                 shapes: column headers as labels, attribute rows as text cells
+                 layout: side-by-side columns, dividing vertical line between them
+  anatomy      → labeled parts of a structure or system
+                 shapes: central structure drawing with leader lines to callout labels
+                 layout: structure centered, labels around the perimeter
+  network      → interconnected nodes with no strict hierarchy
+                 shapes: circle for each node, plain or directed edges
+                 layout: spread out, clear spacing, no overlapping labels
+
+═══════════════════════════════════════════════════════
+imagePrompt FORMAT — use this EXACT 4-section structure:
+═══════════════════════════════════════════════════════
+
+TITLE: <step title — max 6 words, exact match to "title" field>
+
+ELEMENTS:
+- <shape> "<Label>"
+  (shape = rect | diamond | oval | circle | line)
+  (Label = 1-4 common English words, spelled correctly)
+  (list every unique element ONCE — never repeat a label)
+  (max 8 elements total)
+
+CONNECTIONS:
+- "<Source Label>" to "<Destination Label>"
+  (use only labels that appear in ELEMENTS)
+  (one connection per line)
+  (for diagrams with no directed flow, write: none)
+
+LAYOUT: <one sentence: spatial arrangement and reading direction>
+
+═══════════════════════════════════════════════════════
+STRICT RULES:
+- Every label must be plain English, spelled correctly, 1-4 words.
+- Each label appears in ELEMENTS exactly once. Never repeat.
+- CONNECTIONS reference only labels listed in ELEMENTS.
+- Include all meaningful directed connections — do not omit flow paths.
+- Do NOT use square brackets [ ] anywhere in the imagePrompt.
+- Do NOT write the section headers (TITLE, ELEMENTS, CONNECTIONS, LAYOUT)
+  as part of diagram content — they are structural markers only.
+═══════════════════════════════════════════════════════
 `);
   }
 
@@ -387,25 +429,57 @@ Rules for imagePrompt:
   //  Agent 3 — Visualizer
   //  Generates each image, one at a time, returning a data-URL.
   // ═══════════════════════════════════════════════════════════════════════════
-  async function agentVisualize(gemini, imagePrompt, step, title) {
+  // Shape vocabulary and layout guide per diagram type, used in the visualizer system prompt.
+  const DIAGRAM_CONVENTIONS = {
+    'flowchart':    'rect = process step, diamond = decision (Yes/No branches), oval = start or end terminal. Flow direction: top-to-bottom or left-to-right.',
+    'concept-map':  'oval = concept node. Edges are labeled lines (not arrows) describing the relationship. Central concept in the middle, related concepts radiating outward.',
+    'hierarchy':    'rect = node. Parent-child links are plain lines without arrowheads. Root at top, leaves at bottom.',
+    'cycle':        'rect = stage. Stages arranged clockwise in a ring. Arrow from each stage to the next; the last stage arrow curves back to the first.',
+    'timeline':     'horizontal axis line from left to right. Labeled tick marks or small brackets above/below for each event or phase, in chronological order.',
+    'comparison':   'Column header labels at top. Attribute rows beneath each column. A vertical divider line separates the columns.',
+    'anatomy':      'Central structural drawing in the middle. Thin straight leader lines extend from specific parts outward to short callout labels.',
+    'network':      'circle = node, labeled inside. Edges are straight or curved lines. Directed edges have arrowheads. Nodes spread out with clear spacing.',
+  };
+
+  async function agentVisualize(gemini, imagePrompt, step, title, diagramType) {
+    const convention = DIAGRAM_CONVENTIONS[diagramType] || 'Use simple labeled boxes and lines appropriate to the content.';
     const fullPrompt = `
-Excalidraw-style hand-drawn whiteboard diagram. White background.
-Rough black ink sketch lines with slight hand-drawn wobble.
-Simple geometric shapes (rectangles, circles, arrows) drawn imperfectly, as if by hand.
-Clean label text in a casual handwriting-like style. Clear visual hierarchy.
-Educational diagram for a student or researcher.
+Hand-drawn whiteboard-style educational diagram. White background.
+Sketch aesthetic: rough black ink lines with slight wobble, shapes slightly imperfect.
+Text style: casual handwriting-like labels, legible, short.
 
-ARROW RULES — follow exactly:
-- Draw an arrow ONLY when the diagram content explicitly states "arrow from X to Y".
-- Each arrow must visually start at the named source block and end at the named destination block with an arrowhead.
-- Do NOT add any arrow that is not explicitly described in the diagram content below.
-- Do NOT omit any arrow that IS explicitly described.
-- Two blocks placed close together do NOT imply an arrow — only draw arrows that are stated.
+DIAGRAM TYPE: ${diagramType || 'general'}
+SHAPE GUIDE: ${convention}
 
-Diagram content:
+══════════════════════════════════════════
+RENDERING RULES — follow every rule below:
+══════════════════════════════════════════
+
+(1) TITLE — Write the step title as a small bold heading at the top of the canvas.
+    Title text: "${title}"
+
+(2) ELEMENTS — Draw each listed shape with its quoted label text inside or beside it.
+    Each element must appear EXACTLY ONCE on the canvas.
+    Never repeat, duplicate, or re-draw a shape that has the same label as one already drawn.
+
+(3) CONNECTIONS — For every line of the form "A" to "B":
+    Draw a physical ARROW LINE starting at shape A and ending at shape B, with an arrowhead at B.
+    CRITICAL: Do NOT write the words "to", the label names, or any connection description as visible text.
+    The connection is a drawn line with an arrowhead — nothing else.
+    Draw every listed connection. Do not omit any.
+
+(4) LAYOUT — Arrange the shapes according to the LAYOUT line in the specification.
+
+(5) STRICT PROHIBITIONS:
+    - Do NOT render the words TITLE, ELEMENTS, CONNECTIONS, or LAYOUT as visible text.
+    - Do NOT add shapes, labels, or arrows that are not listed in the specification.
+    - Do NOT write "Excalidraw", "hand-drawn", or any style description as text in the image.
+    - Spell every label exactly as written in the ELEMENTS list — no changes, no abbreviations.
+
+══════════════════════════════════════════
+Diagram specification (Step ${step}):
+══════════════════════════════════════════
 ${imagePrompt}
-
-Step ${step}: ${title}
 `;
     return gemini.image(fullPrompt.trim());
   }
@@ -453,7 +527,19 @@ Step ${step}: ${title}
   }
 
   // Results card
-  function addLoadingCard(step, title, desc, total) {
+  const DIAGRAM_TYPE_LABELS = {
+    'flowchart':   'Flowchart',
+    'concept-map': 'Concept Map',
+    'hierarchy':   'Hierarchy',
+    'cycle':       'Cycle',
+    'timeline':    'Timeline',
+    'comparison':  'Comparison',
+    'anatomy':     'Anatomy',
+    'network':     'Network',
+  };
+
+  function addLoadingCard(step, title, desc, total, diagramType) {
+    const typeLabel = diagramType ? (DIAGRAM_TYPE_LABELS[diagramType] || diagramType) : '';
     const card = document.createElement('div');
     card.id = `card-${step}`;
     card.className = 'bg-white rounded-2xl border border-[#E8E5D8] shadow-sm overflow-hidden fade-up';
@@ -461,7 +547,8 @@ Step ${step}: ${title}
       <div class="px-5 py-4 border-b border-[#E8E5D8]">
         <div class="flex items-center gap-2 mb-1.5">
           <span class="text-[10px] font-mono text-[#B8B5A5]">${step} / ${total}</span>
-          <span class="flex items-center gap-1.5 text-[11px] text-[#D97706]">
+          ${typeLabel ? `<span class="text-[10px] font-medium text-[#8A8878] bg-[#F0EEE4] rounded-md px-1.5 py-0.5">${typeLabel}</span>` : ''}
+          <span class="flex items-center gap-1.5 text-[11px] text-[#D97706] ml-auto">
             <span class="spinner" style="width:10px;height:10px;border-width:1.5px;"></span>
             Generating…
           </span>
@@ -624,7 +711,7 @@ Step ${step}: ${title}
 
       // Pre-render all loading skeletons
       for (const v of plan.visualizations) {
-        addLoadingCard(v.step, v.title, v.description, total);
+        addLoadingCard(v.step, v.title, v.description, total, v.diagramType);
       }
 
       // ── Agent 3: Visualize (sequential) ──────────────────────────────
@@ -635,7 +722,7 @@ Step ${step}: ${title}
         const v = plan.visualizations[i];
         upsertStep('viz', `Generating image ${i + 1} of ${total}…`, 'active');
         try {
-          const dataUrl = await agentVisualize(gemini, v.imagePrompt, v.step, v.title);
+          const dataUrl = await agentVisualize(gemini, v.imagePrompt, v.step, v.title, v.diagramType);
           resolveCard(v.step, dataUrl);
           success++;
         } catch (e) {
